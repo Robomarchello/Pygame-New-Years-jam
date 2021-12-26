@@ -12,9 +12,9 @@ clock = pygame.time.Clock()
 
 pygame.mouse.set_visible(False)
 curs = Cursor(17)
-target_system = Target_System()
+target_system = Target_System(curs)
 def loop():
-    event_handlers = [curs]
+    event_handlers = [curs,target_system]
     while True:
         screen.fill((255,255,255))
 

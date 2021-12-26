@@ -1,4 +1,4 @@
-import pygame,sys,random as rd
+import pygame,sys,random as rd,time
 from pygame.locals import *
 from data.scripts.easings import *
 
@@ -33,7 +33,6 @@ class Cursor():
         else:
             if self.resEase.percent > 0:
                 self.resEase.percent -= 0.05
-
         if self.resEase.percent < 0:
             self.resEase.percent = 0
 
@@ -46,7 +45,7 @@ class Cursor():
 class Target():
     def __init__(self,pos,image):
         self.image = image
-        self.rect = self.image.get_rect(topleft=pos)
+        self.rect = self.image.get_rect(center=pos)
 
         self.speed = 2
 
@@ -59,21 +58,50 @@ class moving_target():
         pass
 
 class showing_target():
-    def __init__(self):
-        pass
+    def __init__(self,pos1,pos2,duration):
+        self.pos1 = pos1
+        self.pos2 = pos2
+        self.duration = duration
+        
+        self.image = image
 
+    def draw(self,screen):
+        pass
 class Target_System():
-    def __init__(self):
-        self.score = []
+    def __init__(self,cursor):
+        self.score = 0
+        self.wave = 0
+
+        self.cursor = cursor
 
         self.target_1 = pygame.image.load('data/assets/target_1.png').convert()
         self.target_1.set_colorkey((0,0,0))
-        self.target_1_big = pygame.image.load('data/assets/target_1_big.png').convert()
-        self.target_1_big.set_colorkey((0,0,0))
-        
         self.targets = []
-        self.targets.append(Target([100,100],rd.choice([self.target_1,self.target_1_big])))
+        self.targets.append(Target([rd.randint(0,1024),-128],self.target_1))
+
+        self.appendUpdt = time.time()+1
+
+        self.mp = [0,0]
 
     def draw(self,screen):
         for target in self.targets:
             target.draw(screen)
+            if target.rect.top > 1024:
+                self.targets.pop(self.targets.index(target))
+                self.targets.append(Target([rd.randint(0,1024),-64],self.target_1))
+
+        if self.appendUpdt < time.time():
+            self.targets.append(Target([rd.randint(0,1024),-64],self.target_1))
+            self.appendUpdt = time.time()+1
+            
+    def handle_event(self,event):
+        if event.type == MOUSEMOTION:
+            self.mp = event.pos
+
+        if event.type == MOUSEBUTTONDOWN:
+            if event.button == 1 or event.button == 2:
+                
+                for target in self.targets:
+                    if target.rect.colliderect(self.cursor):
+                        self.targets.pop(self.targets.index(target))
+                    
