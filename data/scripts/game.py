@@ -12,6 +12,8 @@ class Cursor():
         
         self.pressAnim = False 
         self.pressed = False
+
+        
     def handle_event(self,event):
         if event.type == MOUSEMOTION:
             self.rect.center = event.pos
@@ -48,15 +50,24 @@ class Target():
         self.rect = self.image.get_rect(center=pos)
 
         self.speed = 2
+        self.speedmult = 0.7
 
     def draw(self,screen):
-        self.rect.y += self.speed
+        self.rect.y += self.speed*self.speedmult
         screen.blit(self.image,self.rect.topleft)
     
-class moving_target():
-    def __init__(self):
-        pass
+class Armored_Target():
+    def __init__(self,pos,images):
+        self.crntImg = 0
+        self.images = images
+        self.rect = self.image.get_rect(center=pos)
 
+        self.speed = 2
+        self.speedmult = 0.7
+
+    def draw(self,screen):
+        self.rect.y += self.speed*self.speedmult
+        screen.blit(self.image,self.rect.topleft)
 
 class Showing_Target():
     def __init__(self,pos1,pos2,image,destImg,brick,duration):
@@ -82,6 +93,8 @@ class Showing_Target():
         self.image = image
         self.imgrect = image.get_rect()
 
+        self.speed = 0.5
+
         self.update_pos()
 
     def draw(self,screen):
@@ -92,11 +105,11 @@ class Showing_Target():
             screen.blit(self.destImg,self.imgrect.topleft) 
         if self.moveDir == True:
             if self.ease.percent < 1:
-                self.ease.percent += 0.01
+                self.ease.percent += 0.01*self.speed
 
         else:
             if self.ease.percent > 0:
-                self.ease.percent -= 0.01
+                self.ease.percent -= 0.01*self.speed
 
         if self.duration < time.time():
             self.moveDir = False
