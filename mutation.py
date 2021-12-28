@@ -1,6 +1,8 @@
 import pygame,sys,math
 from pygame.locals import *
 
+from data.scripts.spriteSheet import spriteSheet
+
 pygame.init()
 
 SCRSIZE = (1024,768)
@@ -74,16 +76,27 @@ class Button():
         self.borderColor2 = pygame.Color(255,255,255)
         self.borderAnim = 0.0
 
-        self.color = (0,200,0)
+        self.color = pygame.Color(0,200,0)
+        self.colorlock = pygame.Color(0,130,0)
+        self.unlock_anim = 0.0
+
+        self.dependence = None
 
         self.mp = [0,0]
 
         self.func = func
         self.pressed = False
-        
+
+        self.locked = True
     def draw(self,screen):
-        pygame.draw.rect(screen,self.color,self.rect)
+        if self.locked == False:
+            if self.unlock_anim < 0.98:
+                self.unlock_anim += 0.02
+                
+        pygame.draw.rect(screen,self.colorlock.lerp(self.color,self.unlock_anim),self.rect)
         pygame.draw.rect(screen,self.borderColor1.lerp(self.borderColor2,self.borderAnim),self.rect,width=3)
+
+        self.lock_check()
 
         if self.rect.collidepoint(self.mp):
             if self.borderAnim < 0.98:
@@ -94,19 +107,19 @@ class Button():
 
         screen.blit(self.image,self.imageRect.topleft)
 
+    def lock_check(self):
+        if self.dependence == None:
+            self.locked = False
+        else:
+            if self.dependence.pressed == True:
+                self.locked = False
     def handle_event(self,event):
-        if event.type == MOUSEBUTTONDOWN and self.pressed == False:
+        if event.type == MOUSEBUTTONDOWN and self.locked == False:
             if self.rect.collidepoint(self.mp):
                 if event.button == 1 or event.button == 2:
                     self.func()
                     self.pressed = True
                     
-#(557, 186) -- poses
-#(367, 302)
-#(561, 310)
-#826, 301)
-#828, 450)
-#590, 444)
 
 class mutation_menu():
     def __init__(self):
@@ -119,17 +132,25 @@ class mutation_menu():
 
         self.mp = [0,0]
 
-
         self.btnIcon = pygame.image.load('data/assets/btnicon.png').convert_alpha()
+
+        self.btnIcons = spriteSheet(pygame.image.load('data/assets/buttonSheet.png').convert_alpha(),(90,90))
         self.buttons = [
-            Button([560, 190],self.btnIcon,self.test_func),
-            Button([560, 360],self.btnIcon,self.test_func),
-            Button([360, 360],self.btnIcon,self.test_func),
-            Button([760, 360],self.btnIcon,self.test_func),
-            #Button([826, 301],self.btnIcon,self.test_func),
-            #Button([828, 450],self.btnIcon,self.test_func),
-            #Button([590, 444],self.btnIcon,self.test_func)
+            Button([560, 190],self.btnIcons[0],self.test_func),
+            Button([560, 360],self.btnIcons[5],self.test_func),
+            Button([360, 360],self.btnIcons[1],self.test_func),
+            Button([760, 360],self.btnIcons[2],self.test_func),
+            Button([560, 530],self.btnIcons[4],self.test_func),
+            Button([360, 530],self.btnIcons[1],self.test_func),
+            Button([760, 530],self.btnIcons[3],self.test_func),
             ]
+
+        self.buttons[1].dependence = self.buttons[0]
+        self.buttons[2].dependence = self.buttons[0]
+        self.buttons[3].dependence = self.buttons[0]
+        self.buttons[4].dependence = self.buttons[1]
+        self.buttons[5].dependence = self.buttons[2]
+        self.buttons[6].dependence = self.buttons[3]
 
     def draw(self,screen):
         self.surface.fill((50,50,50))
@@ -167,13 +188,10 @@ def loop():
                 pygame.quit()
                 sys.exit()
 
-            if event.type == KEYDOWN:
-                print(clock.get_fps())
-
             for event_handler in event_handlers:
                 event_handler.handle_event(event)
         pygame.display.update()
-        clock.tick(0)
+        clock.tick(270)
 
 if __name__ == '__main__':
     loop()
