@@ -44,18 +44,55 @@ class raycast():
         self.rects = rects
 
         self.rays = []
+        self.mp = [0,0]
 
         for Ray in range(37):
-            rays.append(ray((300,300),10*Ray,300))
+            self.rays.append(ray((300,300),10*Ray,300))
 
-def get_points(rect):
-    points = [rect.topleft,rect.topright,rect.bottomleft,rect.bottomright]
-    return points
+    def get_rays(self):
+        #getting all corners
+        poses = []
+        for rect in self.rects:
+            poses.extend(self.get_points(rect))
 
+        #getting all angles
+        angles = []
+        for pos in poses:
+            angles.append(math.sqrt((self.mp[0]-pos[0])**2+(self.mp[1]-pos[1])**2))
+            
+        self.rays = []
+        for angle in angles:
+            self.rays.append(ray(self.mp,angle,250))
+            
+        self.rays.append(ray(self.mp,45,300))
+        self.rays.append(ray(self.mp,135,300))
+        self.rays.append(ray(self.mp,225,300))
+        self.rays.append(ray(self.mp,315,300))
+    def get_points(self,rect):
+        points = [rect.topleft,rect.topright,rect.bottomleft,rect.bottomright]
+        return points
+
+    def draw(self,screen):
+        polyPoints = []
+        self.get_rays()
+        for r in self.rays:
+            r.startPos = self.mp
+            r.draw(screen,rects)
+            polyPoints.append([r.endPos[0],r.endPos[1]])
+
+        pygame.draw.polygon(screen,(255,255,255),polyPoints)
+
+    def handle_event(self,event):
+        if event.type == MOUSEMOTION:
+            self.mp = event.pos
 #pygame.mouse.set_visible(False)
+rayc = raycast(rects)
 while True:
+    
     clock.tick(0)
     scr.fill((0,0,0))
+
+    rayc.draw(scr)
 
     for rect in rects:
         pygame.draw.rect(scr,(255,255,255),rect)
@@ -70,6 +107,6 @@ while True:
                 
                 pygame.quit()
                 sys.exit()
-
+        rayc.handle_event(event)
     pygame.display.update()
 
