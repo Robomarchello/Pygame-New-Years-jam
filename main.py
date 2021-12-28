@@ -25,7 +25,6 @@ def loop():
     imgs = eval(info['images'])
     for img in imgs:
         img.set_colorkey((0,0,0))
-
     prlx = parallax(imgs,eval(info['poses']),eval(info['percents']))
 
     event_handlers = [curs,target_system,prlx]

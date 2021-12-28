@@ -210,7 +210,7 @@ class Target_System():
             if rd.randint(0,10) == 10:
                 self.armored_targets.append(Armored_Target([rd.randint(0,1024),-64],self.images))
             elif rd.randint(0,5) == 5:
-                pos = rd.choice(self.show_targets_poses)
+                pos = rd.choice([([-64,250],[275,250]),([1088+self.brick.get_width(),250],[1088,250])])
                 ps = rd.randint(100,600)
                 pos[0][1] = ps
                 pos[1][1] = ps
