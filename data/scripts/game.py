@@ -314,6 +314,8 @@ class Cannon():
         self.bullets = []
 
         self.mp = [0,0]
+
+        self.hitSound = pygame.mixer.Sound('data/assets/hitHurt.ogg')
         
     def get_angle(self):
         self.dist = [self.rect.center[0]-self.mp[0],self.rect.top-self.mp[1]]
@@ -352,6 +354,7 @@ class Cannon():
                     self.bullets.pop(self.bullets.index(bullet))
                     self.hpBar.hp -= 1
                     self.combo.combo = 1
+                    self.hitSound.play()
                     
                 except:
                     pass
@@ -367,18 +370,32 @@ class Cannon():
         screen.blit(self.stand,self.rect.topleft)
     
 class Target_System():
-    def __init__(self,cursor,wave_timer,hpBar,combo):
+    def __init__(self,cursor,wave_timer,hpBar,combo,updateParallax):
         self.combo = combo
         self.score = 0
         self.wave = wave_timer.wave
         self.Wave_Timer = wave_timer
 
+        self.updateParallax = updateParallax
+
         self.hpBar = hpBar
 
         self.pieces = []
 
+        self.destroySnd = [
+            pygame.mixer.Sound('data/assets/Hitsound.ogg'),
+            pygame.mixer.Sound('data/assets/Hitsound1.ogg'),
+            pygame.mixer.Sound('data/assets/Hitsound2.ogg'),
+            pygame.mixer.Sound('data/assets/Hitsound3.ogg'),
+            pygame.mixer.Sound('data/assets/Hitsound4.ogg'),
+            pygame.mixer.Sound('data/assets/Hitsound5.ogg'),
+            pygame.mixer.Sound('data/assets/Hitsound6.ogg'),
+            pygame.mixer.Sound('data/assets/Hitsound7.ogg')]
+        
         self.cursor = cursor
 
+        self.targSpeed = 0.5
+        
         self.target_1 = pygame.image.load('data/assets/target_1.png').convert()
         self.target_1.set_colorkey((0,0,0))
         self.targets = []
@@ -419,16 +436,13 @@ class Target_System():
         self.cannon_stand = pygame.image.load('data/assets/cannon_stand.png').convert()
         self.cannon_stand.set_colorkey((255,255,255))
         self.cannons = [
-            
             ]
 
     def update_speed(self):
-        for target in self.targets:
-            target.speedmult += 0.1
-        for target in self.armored_targets:
-            target.speedmult += 0.1
-        for target in self.show_targets:
-            target.speed += 0.1
+        if self.targSpeed < 1.2:
+            self.targSpeed += 0.1
+
+        self.updateParallax()
 
     def clean(self):
         self.targets = []
@@ -440,12 +454,14 @@ class Target_System():
     def draw(self,screen):
         if self.Wave_Timer.timerStop == True:
             self.update_speed()
+            
             if self.Wave_Timer.wave == 1:
                 self.cannons.append(Cannon([200,768],self.cannon_gun,self.cannon_stand,self.hpBar,self.combo))
 
             if self.Wave_Timer.wave == 4:
                 self.cannons.append(Cannon([800,768],self.cannon_gun,self.cannon_stand,self.hpBar,self.combo))
 
+            self.Wave_Timer.wave += 1
 
         #Append targets
         if self.appendUpdt < time.time():
@@ -464,6 +480,7 @@ class Target_System():
             
         #loop targets
         for target in self.targets:
+            target.speedmult = self.targSpeed
             target.draw(screen)
             
             if target.rect.top > 768:
@@ -483,14 +500,9 @@ class Target_System():
                         self.combo.combo -= 2
                 except:
                     pass
-
-        for cannon in self.cannons:
-            cannon.draw(screen,self.cursor)
-            
-        for piece in self.pieces:
-            piece.draw(screen)
-            
+                
         for target in self.armored_targets:
+            target.speedmult = self.targSpeed
             target.draw(screen)
             if target.rect.top > 768:
                 try:
@@ -498,6 +510,34 @@ class Target_System():
                     self.combo.combo -= 5
                 except:
                     pass
+                
+        for cannon in self.cannons:
+            cannon.draw(screen,self.cursor)
+            
+        for piece in self.pieces:
+            piece.draw(screen)
+            
+
+
+    def playSnd(self):
+        if self.combo.combo < 5:
+            self.destroySnd[0].play()
+        elif self.combo.combo < 10:
+            self.destroySnd[1].play()
+        elif self.combo.combo < 15:
+            self.destroySnd[2].play()
+        elif self.combo.combo < 20:
+            self.destroySnd[3].play()
+        elif self.combo.combo < 30:
+            self.destroySnd[4].play()
+        elif self.combo.combo < 40:
+            self.destroySnd[5].play()
+        elif self.combo.combo < 50:
+            self.destroySnd[6].play()
+        elif self.combo.combo < 60:
+            self.destroySnd[7].play()
+        else:
+            self.destroySnd[7].play()
 
     def addPieces(self,target):
         self.combo.combo += 1
@@ -512,46 +552,57 @@ class Target_System():
                 cannon.mp = event.pos
 
         if event.type == MOUSEBUTTONDOWN:
+            getCollide = False
             if event.button == 1 or event.button == 2:
                 
                 for target in self.targets:
                     if target.rect.colliderect(self.cursor):
                         self.targets.pop(self.targets.index(target))
+                        self.playSnd()
                         self.addPieces(target)
+                        getCollide = True
                         
                 for target in self.show_targets:
                     if target.destroyed == False:
                         self.combo.combo += 1
                     if target.imgrect.colliderect(self.cursor):
                         target.destroyed = True
+                        self.playSnd()
+                        getCollide = True
 
                 for target in self.armored_targets:
                     if target.rect.colliderect(self.cursor):
                         if self.cursor.damage >= 3:
                             target.destroyed = True
+                            getCollide = True
                         else:
                             target.crntImg += self.cursor.damage
                             if target.crntImg >= len(self.images):
+                                getCollide = True
                                 target.crntImg = 0
                                 target.destroyed = True
 
                     if target.destroyed == True:
+                        getCollide = True
+                        self.playSnd()
                         self.armored_targets.pop(self.armored_targets.index(target))
                         self.addPieces(target)
-
+                if getCollide == False:
+                    self.combo.combo -= 1
 class GameOver():
     def __init__(self,hp):
         self.hp = hp
         self.surf = pygame.Surface((1024,768))
         self.gameover = False
 
-        self.font = pygame.font.Font('data/assets/Roboto.ttf',50)
+        self.font = pygame.font.Font('data/assets/Roboto.ttf',80)
 
         self.rdText = [
             'You can do better:)',
-            'Well done!',
+            'Hhhoow?',
             'Take another try',
-            'Good job!',
+            'This all you got?',
+            'I thought you are better',
             'How did you die?!?']
 
         self.text = rd.choice(self.rdText)
@@ -561,6 +612,12 @@ class GameOver():
 
     def draw(self,screen):
         self.surf.fill((105,105,105))
+
+        render = self.font.render(self.text,True,(170,170,170))
+        rectrend = render.get_rect(center = [512,100])
+        self.surf.blit(render,rectrend.topleft)
+
+        self.surf.blit(self.font.render('Press R to restart',True,(170,170,170)),(0,670))
         if self.gameover == True:
             if self.appearEff.percent < 1:
                 self.appearEff.percent += 0.0025
@@ -577,4 +634,4 @@ class GameOver():
                     self.gameover = False
                     self.hp.hp = 3
                     self.hp.maxHp = 3
-
+                    self.appearEff = easeInBounce([0,-self.surf.get_width()],[0,0],0.0)

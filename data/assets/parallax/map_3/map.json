@@ -1,0 +1,5 @@
+{
+"poses":"[(-132,500),(-100,520),(-100,470)]",
+"images":"[pygame.image.load('data/assets/parallax/map_3/background.png').convert(),pygame.image.load('data/assets/parallax/map_3/layer_1.png').convert(),pygame.image.load('data/assets/parallax/map_3/layer_2.png').convert(),pygame.image.load('data/assets/parallax/map_3/layer_3.png').convert()]",
+"percents":"[0.15,0.1,0.05]"
+}

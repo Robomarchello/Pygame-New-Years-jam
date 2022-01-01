@@ -130,6 +130,7 @@ class Mutation_Menu():
         self.damage = self.cursor.damage
 
         self.font = pygame.font.Font('data/assets/Roboto.ttf',70)
+        self.font30 = pygame.font.Font('data/assets/Roboto.ttf',30)
         self.text = self.font.render('M U T A T I O N S',True,(0,200,0))
 
         self.dna = dna(pygame.Rect(100,0,70,800),300,1)
@@ -145,7 +146,7 @@ class Mutation_Menu():
             Button([560, 460],self.btnIcons[5],self.combo4),
             Button([360, 460],self.btnIcons[1],self.addAnotherHp),
             Button([760, 460],self.btnIcons[3],self.addMoreDamage),
-            Button([560, 620],self.btnIcons[6],self.test_func),
+            Button([560, 620],self.btnIcons[6],self.addRegen),
             Button([360, 620],self.btnIcons[7],self.combo6),
             ]
 
@@ -158,18 +159,46 @@ class Mutation_Menu():
         self.buttons[7].dependence = self.buttons[4]
         self.buttons[8].dependence = self.buttons[5]
 
+    def clear(self):
+        self.buttons = [
+            Button([560, 120],self.btnIcons[0],self.addRadius),
+            Button([560, 290],self.btnIcons[4],self.combo2),
+            Button([360, 290],self.btnIcons[1],self.addHp),
+            Button([760, 290],self.btnIcons[2],self.addDamage),
+            Button([560, 460],self.btnIcons[5],self.combo4),
+            Button([360, 460],self.btnIcons[1],self.addAnotherHp),
+            Button([760, 460],self.btnIcons[3],self.addMoreDamage),
+            Button([560, 620],self.btnIcons[6],self.addRegen),
+            Button([360, 620],self.btnIcons[7],self.combo6),
+            ]
+
+        self.buttons[1].dependence = self.buttons[0]
+        self.buttons[2].dependence = self.buttons[0]
+        self.buttons[3].dependence = self.buttons[0]
+        self.buttons[4].dependence = self.buttons[1]
+        self.buttons[5].dependence = self.buttons[2]
+        self.buttons[6].dependence = self.buttons[3]
+        self.buttons[7].dependence = self.buttons[4]
+        self.buttons[8].dependence = self.buttons[5]
+        
     def draw(self,screen):
         self.surface.fill((50,50,50))
         self.dna.draw(self.surface)
         self.surface.blit(self.text,(370,20))
+        self.surface.blit(self.font30.render('ESC to exit',True,(0,200,0)),(870,730))
 
         for button in self.buttons:
             button.draw(self.surface)
 
         screen.blit(self.surface,(0,0))
 
-    def test_func(self):
-        print('gae')
+    def addRegen(self):
+        if self.hpBar.regen == False:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                self.hpBar.regen = True
+        else:
+            return True
     def addRadius(self):
         if self.cursor.radius < 48:
             if self.upgrade_count > 0:
@@ -202,20 +231,23 @@ class Mutation_Menu():
         if self.comboSys.multiplier < 2:
             if self.upgrade_count > 0:
                 self.upgrade_count -= 1
-                self.comboThingy = 2
-            
+                self.comboSys.multiplier = 2
+        else:
+            return True
     def combo4(self):
         if self.comboSys.multiplier < 4:
             if self.upgrade_count > 0:
                 self.upgrade_count -= 1
-                self.comboThingy = 4
-            
+                self.comboSys.multiplier = 4
+        else:
+            return True
     def combo6(self):
         if self.comboSys.multiplier < 6:
             if self.upgrade_count > 0:
                 self.upgrade_count -= 1
-                self.comboThingy = 6
-            
+                self.comboSys.multiplier = 6
+        else:
+            return True
     def addDamage(self):
         if self.cursor.damage < 2:
             if self.upgrade_count > 0:
@@ -237,5 +269,8 @@ class Mutation_Menu():
                 for button in self.buttons:
                     button.mp = event.pos
 
+            if event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    self.upgrade_count = 0
             for button in self.buttons:
                 button.handle_event(event)
