@@ -1,15 +1,7 @@
-import pygame,sys,math
+import pygame
 from pygame.locals import *
-
+import math
 from data.scripts.spriteSheet import spriteSheet
-
-pygame.init()
-
-SCRSIZE = (1024,768)
-screen = pygame.display.set_mode(SCRSIZE)
-pygame.display.set_caption('dna animation')
-
-clock = pygame.time.Clock()
 
 class sinePoint():
     def __init__(self,pos,width,angle,speed):
@@ -87,6 +79,8 @@ class Button():
         self.func = func
         self.pressed = False
 
+        self.decline = False
+
         self.locked = True
     def draw(self,screen):
         if self.locked == False:
@@ -94,6 +88,8 @@ class Button():
                 self.unlock_anim += 0.02
                 
         pygame.draw.rect(screen,self.colorlock.lerp(self.color,self.unlock_anim),self.rect)
+        if self.decline == True:
+            pygame.draw.rect(screen,(150,0,0),self.rect)
         pygame.draw.rect(screen,self.borderColor1.lerp(self.borderColor2,self.borderAnim),self.rect,width=3)
 
         self.lock_check()
@@ -117,21 +113,21 @@ class Button():
         if event.type == MOUSEBUTTONDOWN and self.locked == False:
             if self.rect.collidepoint(self.mp):
                 if event.button == 1 or event.button == 2:
-                    self.func()
+                    self.decline = self.func()
                     self.pressed = True
                     
 
-class mutation_menu():
-    def __init__(self):
+class Mutation_Menu():
+    def __init__(self,cursor,hpBar,comboSys):
         self.surface = pygame.Surface((1024,768))
 
         self.upgrade_count = 0
 
         #toChange
-        self.cursor = None
-        self.hpThingy = None
-        self.comboThingy = None
-        self.damage = None
+        self.cursor = cursor
+        self.hpBar = hpBar
+        self.comboSys = comboSys
+        self.damage = self.cursor.damage
 
         self.font = pygame.font.Font('data/assets/Roboto.ttf',70)
         self.text = self.font.render('M U T A T I O N S',True,(0,200,0))
@@ -142,15 +138,15 @@ class mutation_menu():
 
         self.btnIcons = spriteSheet(pygame.image.load('data/assets/buttonSheet.png').convert_alpha(),(90,90))
         self.buttons = [
-            Button([560, 120],self.btnIcons[0],self.test_func),
-            Button([560, 290],self.btnIcons[4],self.test_func),
-            Button([360, 290],self.btnIcons[1],self.test_func),
-            Button([760, 290],self.btnIcons[2],self.test_func),
-            Button([560, 460],self.btnIcons[5],self.test_func),
-            Button([360, 460],self.btnIcons[1],self.test_func),
-            Button([760, 460],self.btnIcons[3],self.test_func),
+            Button([560, 120],self.btnIcons[0],self.addRadius),
+            Button([560, 290],self.btnIcons[4],self.combo2),
+            Button([360, 290],self.btnIcons[1],self.addHp),
+            Button([760, 290],self.btnIcons[2],self.addDamage),
+            Button([560, 460],self.btnIcons[5],self.combo4),
+            Button([360, 460],self.btnIcons[1],self.addAnotherHp),
+            Button([760, 460],self.btnIcons[3],self.addMoreDamage),
             Button([560, 620],self.btnIcons[6],self.test_func),
-            Button([360, 620],self.btnIcons[7],self.test_func),
+            Button([360, 620],self.btnIcons[7],self.combo6),
             ]
 
         self.buttons[1].dependence = self.buttons[0]
@@ -175,48 +171,71 @@ class mutation_menu():
     def test_func(self):
         print('gae')
     def addRadius(self):
-        self.upgrade_count -= 1
-        self.cursor.radius += 16
-
+        if self.cursor.radius < 48:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                
+                self.cursor.radius += 16
+                self.cursor.rect = pygame.Rect(-self.cursor.radius,-self.cursor.radius,self.cursor.radius,self.cursor.radius)
+        else:
+            return True
     def addHp(self):
-        self.upgrade_count -= 1
-        self.hpThingy += 1
+        if self.hpBar.maxHp < 4:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                
+                self.hpBar.hp += 1
+                self.hpBar.maxHp += 1
+        else:
+            return True
+    def addAnotherHp(self):
+        if self.hpBar.maxHp < 5:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                
+                self.hpBar.hp += 1
+                self.hpBar.maxHp += 1
+        else:
+            return True
 
-    def combo(self):
-        self.upgrade_count -= 1
-        self.comboThingy += 2
-
+    def combo2(self):
+        if self.comboSys.multiplier < 2:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                self.comboThingy = 2
+            
+    def combo4(self):
+        if self.comboSys.multiplier < 4:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                self.comboThingy = 4
+            
+    def combo6(self):
+        if self.comboSys.multiplier < 6:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                self.comboThingy = 6
+            
     def addDamage(self):
-        self.upgrade_count -= 1
-        self.damage += 1
-
+        if self.cursor.damage < 2:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                self.cursor.damage += 1
+        else:
+            return True
+    def addMoreDamage(self):
+        if self.cursor.damage < 3:
+            if self.upgrade_count > 0:
+                self.upgrade_count -= 1
+                self.cursor.damage += 1
+        else:
+            return True
     def handle_event(self,event):
-        if event.type == MOUSEMOTION:
-            self.mp = event.pos
+        if self.upgrade_count > 0:
+            if event.type == MOUSEMOTION:
+                self.mp = event.pos
+                for button in self.buttons:
+                    button.mp = event.pos
+
             for button in self.buttons:
-                button.mp = event.pos
-
-        for button in self.buttons:
-            button.handle_event(event)
-        
-def loop():
-    mutat = mutation_menu()
-    event_handlers = [mutat]
-    while True:
-        screen.fill((50,50,50))
-
-        mutat.draw(screen)
-
-        
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                pygame.quit()
-                sys.exit()
-
-            for event_handler in event_handlers:
-                event_handler.handle_event(event)
-        pygame.display.update()
-        clock.tick(270)
-
-if __name__ == '__main__':
-    loop()
+                button.handle_event(event)

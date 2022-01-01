@@ -1,18 +1,120 @@
-import pygame,sys,random as rd,time
+import pygame
+import random as rd
+import time
+
 from pygame.locals import *
 from data.scripts.easings import *
+from data.scripts.spriteSheet import *
 
+class Combo():
+    def __init__(self,pos):
+        self.pos = pos
+        
+        self.combo = 1
+        self.comb1 = 25
+        self.comb2 = 50
+        self.comb3 = 100
+
+        self.startColor = pygame.Color(0,255,0)
+        self.color1 = pygame.Color(255,0,255)
+        self.color2 = pygame.Color(255,0,0)
+        self.color3 = pygame.Color(238,130,238)
+        
+        self.multiplier = 1
+        self.font = pygame.font.Font('data/assets/Roboto.ttf',40)
+
+    def draw(self,screen):
+        if self.combo < 0:
+            self.combo = 0
+        screen.blit(self.font.render(f'Combo:{self.combo*self.multiplier}',True,self.get_color()),self.pos)
+    def get_color(self):
+        if self.combo < self.comb1:
+            percent = self.combo/self.comb1
+            return self.startColor.lerp(self.color1,percent)
+        elif self.combo < self.comb2:
+            percent = self.combo/self.comb2
+            return self.color1.lerp(self.color2,percent)
+        elif self.combo < self.comb3:
+            percent = self.combo/self.comb3
+            return self.color2.lerp(self.color3,percent)
+            if percent > 1:
+                percent = 1
+        else:
+            percent = 0.99
+            return self.color2.lerp(self.color3,percent)
+        return self.startColor.lerp(self.color1,percent)
+
+class HealthBar():
+    def __init__(self,rect,color,hp):
+        self.rect = rect
+        self.color = color
+        self.maxHp = hp
+        self.hp = hp
+
+        self.regen = False
+        self.regenTime = 15
+        self.regenStamp = time.time()+self.regenTime
+
+        self.hpLen = self.rect.width//self.maxHp
+
+    def draw(self,screen):
+        hpRect = self.rect.copy()
+        hpRect.width = self.hpLen*self.hp
+
+        if self.regen == True:
+            if self.regenStamp < time.time():
+                if self.hp < self.maxHp:
+                    self.hp += 1
+                self.regenStamp = time.time()+self.regenTime
+
+        self.rect.width = self.hpLen*self.maxHp
+        pygame.draw.rect(screen,self.color,hpRect)
+        pygame.draw.rect(screen,(0,0,0),self.rect,width=4)
+
+class Wave_Timer():
+    def __init__(self,mutation_menu): 
+        self.wave = 1
+        self.waveTime = 30
+        self.timer = time.time()+self.waveTime
+
+        self.timerStop = False
+        self.update = False
+        self.timeLeft = abs(self.timer-time.time())
+
+        self.font = pygame.font.Font('data/assets/Roboto.ttf',50)
+
+        self.mutation_menu = mutation_menu
+
+    def draw(self,screen):
+        if self.timerStop == True:
+            self.timer = time.time()+self.waveTime
+        self.timeLeft = self.timer-time.time()
+
+        if self.timeLeft < 0:
+            self.mutation_menu.upgrade_count += 1
+            self.update = True
+            self.timerStop = True
+
+        if self.mutation_menu.upgrade_count < 1:
+            self.timerStop = False
+
+        text = self.font.render(str(round(self.timeLeft,1)),True,(255,255,255))
+        rect = text.get_rect(center = [512,740])
+
+        screen.blit(text,rect.topleft)
+        
 class Cursor():
     def __init__(self,radius):
         self.radius = radius
         self.rect = pygame.Rect(-radius,-radius,radius,radius)
 
-        self.maxRes = 16#px
+        self.damage = 1
+
+        self.maxRes = 8#px
         self.resEase = easeInOutQuart([self.maxRes,0],[0,0],0.0)
         
         self.pressAnim = False 
         self.pressed = False
-
         
     def handle_event(self,event):
         if event.type == MOUSEMOTION:
@@ -155,11 +257,123 @@ class target_piece():
         self.pos[1] += 2
         rotImg = pygame.transform.rotate(self.pieceImg,self.angle)
         screen.blit(rotImg,self.pos)
+
+class Bullet():
+    def __init__(self,pos,radius,angle):
+        self.pos = pos
+        self.radius = radius
+        self.angle = angle
+
+        self.radiusAnim = 5
+        self.radiusEase = Linear([self.radiusAnim,0],[0,0],0.0)
+        self.dir = True
+
+        self.speed = 1
+
+    def draw(self,screen):
+        getRad = self.radiusEase.get_pos()[0]
+        if self.radiusEase.percent < 1:
+            if self.dir == True:
+                self.radiusEase.percent += 0.03
+        else:
+            self.dir = False
+
+        if self.radiusEase.percent > 0:
+            if self.dir == False:
+                self.radiusEase.percent -= 0.03
+        else:
+            self.dir = True
         
+        self.pos[0] -= math.cos(self.angle)*self.speed
+        self.pos[1] += math.sin(self.angle)*self.speed
+        pygame.draw.circle(screen,(150,150,150),self.pos,self.radius+getRad)
+        pygame.draw.circle(screen,(25,25,25),self.pos,self.radius+getRad,width=3)
+
+    def ifCollide(self,cursor):
+        dist = math.sqrt((cursor.rect.center[0]-self.pos[0])**2+(cursor.rect.center[1]-self.pos[1])**2)
+
+        if dist-self.radius-cursor.radius < 0:
+            return True
+        else:
+            return False
+class Cannon():
+    def __init__(self,pos,gun,stand,hpBar,combo):
+        self.pos = pos
+
+        self.combo = combo
+        self.hpBar = hpBar
+
+        self.gun = gun
+        self.stand = stand
+        
+        self.rect = self.stand.get_rect(bottomleft=self.pos)
+        self.angle = 0
+
+        self.bulletDelay = 1
+        self.bulletTimer = time.time()+self.bulletDelay
+        self.bullets = []
+
+        self.mp = [0,0]
+        
+    def get_angle(self):
+        self.dist = [self.rect.center[0]-self.mp[0],self.rect.top-self.mp[1]]
+        self.angle = math.degrees(math.atan2(self.dist[0],self.dist[1]))
+
+    def update(self):
+        if self.bulletTimer <= time.time():
+            self.bulletTimer = time.time()+self.bulletDelay#30,55
+
+            #get bullet pos
+            radAng = math.radians(self.angle-90)
+            pos = [self.rect.center[0],self.rect.top]
+            pos[0] -= math.cos(radAng)*30
+            pos[1] += math.sin(radAng)*55
+            
+            self.bullets.append(Bullet(pos,20,radAng))
+
+    def popBullet(self):
+        try:
+            self.bullets.pop(self.bullets.index(bullet))
+        except:
+            pass
+    def draw(self,screen,cursor):
+        self.update()
+        #rotate gun
+        #draw bullets
+        for bullet in self.bullets:
+            bullet.draw(screen)
+            
+            if bullet.pos[0] > 1024 or bullet.pos[0]+bullet.radius < 0 or bullet.pos[1] > 768 or bullet.pos[1]+bullet.radius < 0:
+                self.popBullet()
+
+
+            if bullet.ifCollide(cursor):
+                try:
+                    self.bullets.pop(self.bullets.index(bullet))
+                    self.hpBar.hp -= 1
+                    self.combo.combo = 1
+                    
+                except:
+                    pass
+                
+                
+        self.get_angle()
+        rotatedGun = pygame.transform.rotate(self.gun,self.angle)
+        rotGunRect = rotatedGun.get_rect(center=(self.rect.center[0],self.rect.top))
+
+        screen.blit(rotatedGun,rotGunRect.topleft)
+
+        #blit stand
+        screen.blit(self.stand,self.rect.topleft)
+    
 class Target_System():
-    def __init__(self,cursor):
+    def __init__(self,cursor,wave_timer,hpBar,combo):
+        self.combo = combo
         self.score = 0
-        self.wave = 0
+        self.wave = wave_timer.wave
+        self.Wave_Timer = wave_timer
+
+        self.hpBar = hpBar
 
         self.pieces = []
 
@@ -180,11 +394,7 @@ class Target_System():
         self.show_targets = []
         self.show_targets_poses = [([-64,250],[275,250]),([1088+self.brick.get_width(),250],[1088,250])]
 
-        self.images = [
-            pygame.image.load('data/assets/metal96.png').convert(),
-            pygame.image.load('data/assets/regular96.png').convert(),
-            pygame.image.load('data/assets/dead96.png').convert()
-            ]
+        self.images = spriteSheet(pygame.image.load('data/assets/armored_target_imgs.png').convert(),(96,96))
 
         self.pieceImgs = [
             pygame.image.load('data/assets/targetPiece1.png').convert(),
@@ -204,7 +414,39 @@ class Target_System():
 
         self.mp = [0,0]
 
+        self.cannon_gun = pygame.image.load('data/assets/cannon_gun.png').convert()
+        self.cannon_gun.set_colorkey((255,255,255))
+        self.cannon_stand = pygame.image.load('data/assets/cannon_stand.png').convert()
+        self.cannon_stand.set_colorkey((255,255,255))
+        self.cannons = [
+            
+            ]
+
+    def update_speed(self):
+        for target in self.targets:
+            target.speedmult += 0.1
+        for target in self.armored_targets:
+            target.speedmult += 0.1
+        for target in self.show_targets:
+            target.speed += 0.1
+
+    def clean(self):
+        self.targets = []
+        self.show_targets = [] 
+        self.armored_targets = []
+        for cannon in self.cannons:
+            cannon.bullets = []
+        
     def draw(self,screen):
+        if self.Wave_Timer.timerStop == True:
+            self.update_speed()
+            if self.Wave_Timer.wave == 1:
+                self.cannons.append(Cannon([200,768],self.cannon_gun,self.cannon_stand,self.hpBar,self.combo))
+
+            if self.Wave_Timer.wave == 4:
+                self.cannons.append(Cannon([800,768],self.cannon_gun,self.cannon_stand,self.hpBar,self.combo))
+
+
         #Append targets
         if self.appendUpdt < time.time():
             if rd.randint(0,10) == 10:
@@ -227,9 +469,9 @@ class Target_System():
             if target.rect.top > 768:
                 try:
                     self.targets.pop(self.targets.index(target))
+                    self.combo.combo -= 3
                 except:
                     pass
-                #self.targets.append(Target([rd.randint(0,1024),-64],self.target_1))
 
         for target in self.show_targets:
             target.draw(screen)
@@ -237,9 +479,14 @@ class Target_System():
             if target.ease.percent <= 0.0:
                 try:
                     self.show_targets.pop(self.show_targets.index(target))
+                    if target.destroyed == False:
+                        self.combo.combo -= 2
                 except:
                     pass
-                
+
+        for cannon in self.cannons:
+            cannon.draw(screen,self.cursor)
+            
         for piece in self.pieces:
             piece.draw(screen)
             
@@ -248,12 +495,21 @@ class Target_System():
             if target.rect.top > 768:
                 try:
                     self.armored_targets.pop(self.targets.index(target))
+                    self.combo.combo -= 5
                 except:
                     pass
-                
+
+    def addPieces(self,target):
+        self.combo.combo += 1
+        for x in range(3):
+            self.pieces.append(target_piece([target.rect.center[0]+rd.randint(-30,30),target.rect.center[1]+rd.randint(-30,30)],self.pieceImgs[x]))
+
     def handle_event(self,event):
         if event.type == MOUSEMOTION:
             self.mp = event.pos
+
+            for cannon in self.cannons:
+                cannon.mp = event.pos
 
         if event.type == MOUSEBUTTONDOWN:
             if event.button == 1 or event.button == 2:
@@ -261,17 +517,64 @@ class Target_System():
                 for target in self.targets:
                     if target.rect.colliderect(self.cursor):
                         self.targets.pop(self.targets.index(target))
-                        for x in range(3):
-                            self.pieces.append(target_piece([target.rect.center[0]+rd.randint(-30,30),target.rect.center[1]+rd.randint(-30,30)],self.pieceImgs[x]))
+                        self.addPieces(target)
+                        
                 for target in self.show_targets:
+                    if target.destroyed == False:
+                        self.combo.combo += 1
                     if target.imgrect.colliderect(self.cursor):
                         target.destroyed = True
 
                 for target in self.armored_targets:
                     if target.rect.colliderect(self.cursor):
-                        target.crntImg += 1
+                        if self.cursor.damage >= 3:
+                            target.destroyed = True
+                        else:
+                            target.crntImg += self.cursor.damage
+                            if target.crntImg >= len(self.images):
+                                target.crntImg = 0
+                                target.destroyed = True
 
                     if target.destroyed == True:
                         self.armored_targets.pop(self.armored_targets.index(target))
-                        for x in range(3):
-                            self.pieces.append(target_piece([target.rect.center[0]+rd.randint(-30,30),target.rect.center[1]+rd.randint(-30,30)],self.pieceImgs[x]))
+                        self.addPieces(target)
+
+class GameOver():
+    def __init__(self,hp):
+        self.hp = hp
+        self.surf = pygame.Surface((1024,768))
+        self.gameover = False
+
+        self.font = pygame.font.Font('data/assets/Roboto.ttf',50)
+
+        self.rdText = [
+            'You can do better:)',
+            'Well done!',
+            'Take another try',
+            'Good job!',
+            'How did you die?!?']
+
+        self.text = rd.choice(self.rdText)
+
+        self.appearEff = easeInBounce([0,-self.surf.get_width()],[0,0],0.0)
+
+
+    def draw(self,screen):
+        self.surf.fill((105,105,105))
+        if self.gameover == True:
+            if self.appearEff.percent < 1:
+                self.appearEff.percent += 0.0025
+        else:
+            if self.appearEff.percent > 1:
+                self.appearEff.percent -= 0.0025
+        if self.appearEff.percent > 0.0:
+            screen.blit(self.surf,self.appearEff.get_pos())
+
+    def handle_event(self,event):
+        if self.gameover == True:
+            if event.type == KEYDOWN:
+                if event.key == K_r:
+                    self.gameover = False
+                    self.hp.hp = 3
+                    self.hp.maxHp = 3
+
